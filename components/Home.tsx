@@ -1,18 +1,20 @@
+'use client';
+
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { reverseGeocode, type Place } from '../lib/api';
 import { bandOf, BAND_BG } from '../lib/aqi';
 import { fmtHour, fmtTime, makeT } from '../lib/i18n';
-import type { Lang } from '../lib/i18n';
-import { useAir, useGeolocation, useInstall, useSaved } from '../lib/hooks';
-import { Advice } from '../components/Advice';
-import { Forecast, bestWindow } from '../components/Forecast';
-import { Gauge, ScaleBar } from '../components/Gauge';
-import { Icon } from '../components/Icon';
-import { NearbyChips } from '../components/NearbyChips';
-import { Pollutants } from '../components/Pollutants';
-import { RankPreview } from '../components/RankPreview';
-import { SearchSheet } from '../components/SearchSheet';
+import { useAir, useGeolocation, useInstall, useLang, useSaved } from '../lib/hooks';
+import { Advice } from './Advice';
+import { Forecast, bestWindow } from './Forecast';
+import { Gauge, ScaleBar } from './Gauge';
+import { Icon } from './Icon';
+import { NearbyChips } from './NearbyChips';
+import { Pollutants } from './Pollutants';
+import { RankPreview } from './RankPreview';
+import { SearchSheet } from './SearchSheet';
 
 interface SavedLoc {
   lat: number;
@@ -21,23 +23,30 @@ interface SavedLoc {
   source: 'gps' | 'manual';
 }
 
-export default function Home({ lang, setLang }: { lang: Lang; setLang: (l: Lang) => void }) {
+export function Home() {
+  const [lang, setLang] = useLang();
   const t = useMemo(() => makeT(lang), [lang]);
-  const nav = useNavigate();
+  const router = useRouter();
 
-  const [loc, setLocState] = useState<SavedLoc | null>(() => {
+  // start empty on both server and client (no hydration mismatch),
+  // then restore the last location from localStorage after mount
+  const [loc, setLocState] = useState<SavedLoc | null>(null);
+  useEffect(() => {
     try {
       const s = JSON.parse(localStorage.getItem('hawa.loc') || 'null');
-      if (s && typeof s.lat === 'number' && typeof s.lon === 'number') return s as SavedLoc;
+      if (s && typeof s.lat === 'number' && typeof s.lon === 'number') setLocState(s);
     } catch {
       /* ignore */
     }
-    return null;
-  });
+  }, []);
   const setLoc = (l: SavedLoc | null) => {
     setLocState(l);
-    if (l) localStorage.setItem('hawa.loc', JSON.stringify(l));
-    else localStorage.removeItem('hawa.loc');
+    try {
+      if (l) localStorage.setItem('hawa.loc', JSON.stringify(l));
+      else localStorage.removeItem('hawa.loc');
+    } catch {
+      /* ignore */
+    }
   };
 
   const { data, loading, error, reload } = useAir(loc?.lat ?? null, loc?.lon ?? null);
@@ -184,7 +193,12 @@ export default function Home({ lang, setLang }: { lang: Lang; setLang: (l: Lang)
             </div>
           </div>
           <div className="top-actions">
-            <Link className="icon-btn" to="/ranking" aria-label={t('rankingTitle')} title={t('rankingTitle')}>
+            <Link
+              className="icon-btn"
+              href="/ranking"
+              aria-label={t('rankingTitle')}
+              title={t('rankingTitle')}
+            >
               <Icon name="trophy" size={18} />
             </Link>
             <button
@@ -215,10 +229,11 @@ export default function Home({ lang, setLang }: { lang: Lang; setLang: (l: Lang)
           <section className="card locbar">
             <Icon name="pin" size={18} className="loc-pin" />
             <div className="loc-text">
-              <div className="loc-name">{loc.name}</div>
-              <div className="loc-meta">
+              <h1 className="loc-name">{loc.name}</h1>
+              <div className="loc-meta" suppressHydrationWarning>
                 {loc.source === 'gps' ? t('gps') : t('manual')}
-                {data && ` · ${t('updated').replace('{x}', fmtTime(data.updated, lang))}`}
+                {data?.updated &&
+                  ` · ${t('updated').replace('{x}', fmtTime(data.updated, lang))}`}
               </div>
             </div>
             <button
@@ -277,7 +292,7 @@ export default function Home({ lang, setLang }: { lang: Lang; setLang: (l: Lang)
                 <Gauge aqi={data.aqi} band={band} label={band[lang]} />
                 <ScaleBar aqi={data.aqi} lang={lang} />
                 {best && (
-                  <div className="best">
+                  <div className="best" suppressHydrationWarning>
                     <Icon name="clock" size={16} />
                     <span>
                       <b>{t('bestWindow')}:</b> {fmtHour(best.time, lang)} · AQI {best.aqi}
@@ -302,7 +317,7 @@ export default function Home({ lang, setLang }: { lang: Lang; setLang: (l: Lang)
           <RankPreview
             lang={lang}
             onPick={(c) => setLoc({ ...c, source: 'manual' })}
-            onSeeAll={() => nav('/ranking')}
+            onSeeAll={() => router.push('/ranking')}
           />
         </main>
 

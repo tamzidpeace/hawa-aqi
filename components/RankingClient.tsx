@@ -1,36 +1,38 @@
+'use client';
+
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Icon } from '../components/Icon';
+import { useRouter } from 'next/navigation';
+import { Icon } from './Icon';
 import { bandOf } from '../lib/aqi';
-import { makeT, type Lang } from '../lib/i18n';
+import { makeT } from '../lib/i18n';
+import { useLang } from '../lib/hooks';
 import { getRanking, REGIONS, sortEntries, type RankEntry, type Region } from '../lib/ranking';
 
 /** Full city ranking — Bangladesh / World (capitals & major cities), filterable. */
-export default function RankingPage({
-  lang,
-  setLang,
-}: {
-  lang: Lang;
-  setLang: (l: Lang) => void;
-}) {
+export function RankingClient({ initialBd }: { initialBd: RankEntry[] | null }) {
+  const [lang, setLang] = useLang();
   const t = makeT(lang);
-  const nav = useNavigate();
+  const router = useRouter();
   const [group, setGroup] = useState<'bd' | 'world'>('bd');
   const [dir, setDir] = useState<'worst' | 'best'>('worst');
-  const [entries, setEntries] = useState<RankEntry[] | null>(null);
+  // server-rendered Bangladesh list (SEO) until the client takes over
+  const [entries, setEntries] = useState<RankEntry[] | null>(initialBd);
   const [err, setErr] = useState(false);
   const [query, setQuery] = useState('');
   const [region, setRegion] = useState<Region | 'all'>('all');
 
-  const load = () => {
+  const load = (g: 'bd' | 'world') => {
     setErr(false);
     setEntries(null);
-    getRanking(group)
+    getRanking(g)
       .then((e) => setEntries(sortEntries(e, dir)))
       .catch(() => setErr(true));
   };
 
-  useEffect(load, [group]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (group !== 'bd' || !initialBd) load(group);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [group]);
 
   useEffect(() => {
     setEntries((prev) => (prev ? sortEntries(prev, dir) : prev));
@@ -57,16 +59,20 @@ export default function RankingPage({
   }, [entries, group, region, query]);
 
   const pick = (c: RankEntry) => {
-    localStorage.setItem(
-      'hawa.loc',
-      JSON.stringify({
-        name: lang === 'bn' ? c.bn : c.en,
-        lat: c.lat,
-        lon: c.lon,
-        source: 'manual',
-      }),
-    );
-    nav('/');
+    try {
+      localStorage.setItem(
+        'hawa.loc',
+        JSON.stringify({
+          name: lang === 'bn' ? c.bn : c.en,
+          lat: c.lat,
+          lon: c.lon,
+          source: 'manual',
+        }),
+      );
+    } catch {
+      /* ignore */
+    }
+    router.push('/');
   };
 
   return (
@@ -76,11 +82,11 @@ export default function RankingPage({
       <div className="page">
         <header className="top">
           <div className="brand">
-            <button className="icon-btn" onClick={() => nav('/')} aria-label={t('back')}>
+            <button className="icon-btn" onClick={() => router.push('/')} aria-label={t('back')}>
               <Icon name="arrowLeft" size={18} />
             </button>
             <div>
-              <div className="brand-name">{t('rankingTitle')}</div>
+              <h1 className="brand-name">{t('rankingTitle')}</h1>
               <div className="brand-sub">
                 {group === 'bd' ? t('bd') : t('world')} ·{' '}
                 {dir === 'worst' ? t('worstFirst') : t('bestFirst')}
@@ -156,7 +162,7 @@ export default function RankingPage({
 
           <section className="card">
             {err ? (
-              <button className="nores retry" onClick={load}>
+              <button className="nores retry" onClick={() => load(group)}>
                 {t('rankFail')}
               </button>
             ) : visible === null ? (
@@ -170,7 +176,9 @@ export default function RankingPage({
             ) : (
               <>
                 {group === 'world' && (
-                  <div className="rank-count">{t('nCities').replace('{n}', String(visible.length))}</div>
+                  <div className="rank-count">
+                    {t('nCities').replace('{n}', String(visible.length))}
+                  </div>
                 )}
                 <div className="rank-list">
                   {visible.map((c, i) => {

@@ -1,26 +1,24 @@
 {
   "name": "hawa-aqi",
   "private": true,
-  "version": "1.0.0",
-  "type": "module",
+  "version": "2.0.0",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc --noEmit && vite build",
-    "preview": "vite preview",
-    "icons": "node scripts/make-icons.mjs"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "icons": "node scripts/make-icons.mjs",
+    "og": "node scripts/make-og.mjs"
   },
   "dependencies": {
+    "next": "^15.3.0",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1",
-    "react-router-dom": "^7.18.5"
+    "react-dom": "^19.3.1"
   },
   "devDependencies": {
+    "@types/node": "^24.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "@vitejs/plugin-react": "^6.2.1",
     "sharp": "^0.35.5",
-    "typescript": "~5.9.3",
-    "vite": "^8.3.5",
-    "vite-plugin-pwa": "^2.0.0"
+    "typescript": "~5.9.3"
   }
 }

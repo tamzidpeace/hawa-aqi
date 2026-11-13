@@ -273,7 +273,11 @@ interface RankCache {
   world: RankEntry[];
 }
 
+/** localStorage only exists in the browser — this module also runs on the server. */
+const hasLS = () => typeof localStorage !== 'undefined';
+
 function readCache(): RankCache | null {
+  if (!hasLS()) return null;
   try {
     const c: RankCache = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
     if (c && Date.now() - c.t < TTL && c.bd?.length && c.world?.length) return c;
@@ -284,8 +288,11 @@ function readCache(): RankCache | null {
 }
 
 async function build(list: RankCity[]): Promise<RankEntry[]> {
-  const aqis = await fetchAqiBatch(list);
-  return list.map((c, i) => ({ ...c, aqi: aqis[i] ?? null }));
+  // share one TTL-cached batch (also used by the city pages) instead of
+  // re-fetching when the module already has fresh values
+  const m = await allCityAqis();
+  if (!m.size) throw new Error('aqi batch unavailable');
+  return list.map((c) => ({ ...c, aqi: m.get(c.en) ?? null }));
 }
 
 /** Ranked list for a group; caches both groups for 10 minutes. */
@@ -295,11 +302,73 @@ export async function getRanking(group: 'bd' | 'world'): Promise<RankEntry[]> {
   const [bd, world] = await Promise.all([build(BD_CITIES), build(WORLD_CITIES)]);
   const next: RankCache = { t: Date.now(), bd, world };
   try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify(next));
+    if (hasLS()) localStorage.setItem(CACHE_KEY, JSON.stringify(next));
   } catch {
     /* ignore */
   }
   return sortEntries(next[group]);
+}
+
+/* ---------------- city landing pages (/aqi/[city]) ---------------- */
+
+export interface CityPageInfo extends RankCity {
+  slug: string;
+  bd: boolean;
+}
+
+function slugify(s: string): string {
+  return s
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // strip diacritics (São Paulo → sao-paulo)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function withSlugs(list: RankCity[], bd: boolean): CityPageInfo[] {
+  const seen = new Set<string>();
+  return list.map((c) => {
+    let slug = slugify(c.en);
+    while (seen.has(slug)) slug = `${slug}-2`;
+    seen.add(slug);
+    return { ...c, slug, bd };
+  });
+}
+
+export const ALL_CITIES: CityPageInfo[] = [
+  ...withSlugs(BD_CITIES, true),
+  ...withSlugs(WORLD_CITIES, false),
+];
+
+export function cityBySlug(slug: string): CityPageInfo | null {
+  return ALL_CITIES.find((c) => c.slug === slug) ?? null;
+}
+
+/**
+ * AQI for every city, fetched in a few batched requests and shared across
+ * all city pages (server-side, TTL-refreshed so warm processes stay fresh).
+ */
+let aqiMap: { at: number; promise: Promise<Map<string, number | null>> } | null = null;
+
+export function allCityAqis(): Promise<Map<string, number | null>> {
+  if (!aqiMap || Date.now() - aqiMap.at > TTL) {
+    const promise = fetchAqiBatch(ALL_CITIES)
+      .then((vals) => {
+        const m = new Map<string, number | null>();
+        ALL_CITIES.forEach((c, i) => m.set(c.en, vals[i] ?? null));
+        return m;
+      })
+      .catch(() => {
+        aqiMap = null; // allow retry on next call
+        return new Map<string, number | null>();
+      });
+    aqiMap = { at: Date.now(), promise };
+  }
+  return aqiMap.promise;
+}
+
+export async function getCityAqi(en: string): Promise<number | null> {
+  return (await allCityAqis()).get(en) ?? null;
 }
 
 export function sortEntries(entries: RankEntry[], dir: 'worst' | 'best' = 'worst'): RankEntry[] {

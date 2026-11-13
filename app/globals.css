@@ -14,7 +14,7 @@
   --border2: rgba(255, 255, 255, 0.07);
   --radius: 22px;
   --font:
-    'Inter', 'Noto Sans Bengali', system-ui, -apple-system, 'Segoe UI', Roboto,
+    var(--font-inter), var(--font-noto-bn), system-ui, -apple-system, 'Segoe UI', Roboto,
     'Helvetica Neue', sans-serif;
 }
 
@@ -44,6 +44,29 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   overscroll-behavior-y: none;
+}
+
+/* h1s reused inside bars (city / ranking titles) — keep them visually inline */
+h1.loc-name,
+h1.brand-name {
+  margin: 0;
+}
+
+/* link card to the full ranking (city landing pages) */
+.rank-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+}
+.rank-link .see-all {
+  margin-left: auto;
+}
+.rank-link:hover {
+  border-color: rgba(var(--ac-rgb, 0, 217, 125), 0.4);
 }
 
 ::selection {

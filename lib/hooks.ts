@@ -5,15 +5,20 @@ import type { Lang } from './i18n';
 /* ---------------- language ---------------- */
 
 export function useLang(): [Lang, (l: Lang) => void] {
-  const [lang, setLang] = useState<Lang>(() => {
-    const s = localStorage.getItem('hawa.lang');
-    return s === 'en' ? 'en' : 'bn';
-  });
+  // start with the SSR value ('bn') and apply the stored choice after mount
+  const [lang, setLang] = useState<Lang>('bn');
+  useEffect(() => {
+    if (localStorage.getItem('hawa.lang') === 'en') setLang('en');
+  }, []);
   useEffect(() => {
     document.documentElement.lang = lang;
   }, [lang]);
   const set = useCallback((l: Lang) => {
-    localStorage.setItem('hawa.lang', l);
+    try {
+      localStorage.setItem('hawa.lang', l);
+    } catch {
+      /* ignore */
+    }
     setLang(l);
   }, []);
   return [lang, set];
@@ -76,8 +81,13 @@ function readCache(lat: number | null, lon: number | null): AirResult | null {
   return null;
 }
 
-export function useAir(lat: number | null, lon: number | null) {
-  const [data, setData] = useState<AirResult | null>(() => readCache(lat, lon));
+export function useAir(
+  lat: number | null,
+  lon: number | null,
+  /** server-rendered seed (city landing pages) — shown until the live fetch lands */
+  seed?: AirResult,
+) {
+  const [data, setData] = useState<AirResult | null>(seed ?? null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
 
@@ -85,13 +95,19 @@ export function useAir(lat: number | null, lon: number | null) {
     if (lat == null || lon == null) return;
     setLoading(true);
     setError(false);
+    const cached = readCache(lat, lon);
+    if (cached) setData(cached);
     try {
       const d = await fetchAir(lat, lon);
       setData(d);
-      localStorage.setItem(
-        'hawa.last',
-        JSON.stringify({ lat, lon, data: d } satisfies CachedAir),
-      );
+      try {
+        localStorage.setItem(
+          'hawa.last',
+          JSON.stringify({ lat, lon, data: d } satisfies CachedAir),
+        );
+      } catch {
+        /* ignore */
+      }
     } catch {
       setError(true);
     } finally {
@@ -144,9 +160,11 @@ export function useInstall() {
 
   const standalone =
     typeof matchMedia !== 'undefined' &&
+    typeof window !== 'undefined' &&
     (matchMedia('(display-mode: standalone)').matches ||
       (window.navigator as unknown as { standalone?: boolean }).standalone === true);
-  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isIOS =
+    typeof navigator !== 'undefined' && /iphone|ipad|ipod/i.test(navigator.userAgent);
 
   const promptInstall = useCallback(() => {
     if (!evt) return;
@@ -180,7 +198,11 @@ const samePlace = (a: SavedPlace, b: SavedPlace) =>
   Math.abs(a.lat - b.lat) < 1e-4 && Math.abs(a.lon - b.lon) < 1e-4;
 
 export function useSaved() {
-  const [list, setList] = useState<SavedPlace[]>(readSaved);
+  // read after mount so SSR and first client render match
+  const [list, setList] = useState<SavedPlace[]>([]);
+  useEffect(() => {
+    setList(readSaved());
+  }, []);
 
   const persist = (l: SavedPlace[]) => {
     setList(l);
