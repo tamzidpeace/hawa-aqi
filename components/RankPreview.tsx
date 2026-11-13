@@ -3,7 +3,8 @@ import { bandOf } from '../lib/aqi';
 import { makeT, type Lang } from '../lib/i18n';
 import { getRanking, type RankEntry } from '../lib/ranking';
 
-/** Compact top-5 pollution ranking (Bangladesh) shown on the home screen. */
+/** Compact top-5 pollution ranking (Bangladesh) shown on the home screen,
+ * with a horizontal bar per city sized relative to the leader. */
 export function RankPreview({
   lang,
   onPick,
@@ -32,6 +33,8 @@ export function RankPreview({
 
   if (!rows || rows.length === 0) return null;
 
+  const maxAqi = Math.max(...rows.map((r) => r.aqi ?? 0), 1);
+
   return (
     <section className="card rank-card">
       <div className="rank-head">
@@ -43,6 +46,7 @@ export function RankPreview({
       <div className="rank-list">
         {rows.map((c, i) => {
           const band = c.aqi != null ? bandOf(c.aqi) : null;
+          const pct = c.aqi != null ? Math.max(Math.min((c.aqi / maxAqi) * 100, 100), 5) : 0;
           return (
             <button
               key={c.en}
@@ -53,7 +57,17 @@ export function RankPreview({
             >
               <span className="rank-no">{i + 1}</span>
               <span className="rank-name">{lang === 'bn' ? c.bn : c.en}</span>
-              <span className="nchip-dot" style={{ background: band?.color ?? '#64717e' }} />
+              <span className="rank-bar">
+                {c.aqi != null && band && (
+                  <i
+                    className="rank-fill"
+                    style={{
+                      width: `${pct}%`,
+                      background: `linear-gradient(90deg, ${band.color}55, ${band.color})`,
+                    }}
+                  />
+                )}
+              </span>
               <span className="rank-aqi" style={{ color: band?.color ?? 'inherit' }}>
                 {c.aqi ?? '—'}
               </span>

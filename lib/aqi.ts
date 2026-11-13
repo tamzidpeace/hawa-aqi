@@ -20,28 +20,67 @@ export interface Band {
   max: number;
   en: string;
   bn: string;
+  /** short form used in the scale-bar legend */
+  sEn: string;
+  sBn: string;
   color: string;
 }
 
 export const BANDS: Band[] = [
-  { key: 'good', max: 50, en: 'Good', bn: 'ভালো', color: '#00d97d' },
-  { key: 'moderate', max: 100, en: 'Moderate', bn: 'মধ্যম', color: '#ffd43d' },
+  {
+    key: 'good',
+    max: 50,
+    en: 'Good',
+    bn: 'ভালো',
+    sEn: 'Good',
+    sBn: 'ভালো',
+    color: '#00d97d',
+  },
+  {
+    key: 'moderate',
+    max: 100,
+    en: 'Moderate',
+    bn: 'মধ্যম',
+    sEn: 'Moderate',
+    sBn: 'মধ্যম',
+    color: '#ffd43d',
+  },
   {
     key: 'usg',
     max: 150,
     en: 'Unhealthy for Sensitive Groups',
     bn: 'সংবেদনশীলদের জন্য অস্বাস্থ্যকর',
+    sEn: 'Sensitive',
+    sBn: 'সংবেদনশীল',
     color: '#ff9d42',
   },
-  { key: 'unhealthy', max: 200, en: 'Unhealthy', bn: 'অস্বাস্থ্যকর', color: '#ff5d5d' },
+  {
+    key: 'unhealthy',
+    max: 200,
+    en: 'Unhealthy',
+    bn: 'অস্বাস্থ্যকর',
+    sEn: 'Unhealthy',
+    sBn: 'অস্বাস্থ্যকর',
+    color: '#ff5d5d',
+  },
   {
     key: 'veryunhealthy',
     max: 300,
     en: 'Very Unhealthy',
     bn: 'খুব অস্বাস্থ্যকর',
+    sEn: 'Very Unhealthy',
+    sBn: 'খুব অস্বাস্থ্যকর',
     color: '#b06cff',
   },
-  { key: 'hazardous', max: 500, en: 'Hazardous', bn: 'বিপজ্জনক', color: '#d5305c' },
+  {
+    key: 'hazardous',
+    max: 500,
+    en: 'Hazardous',
+    bn: 'বিপজ্জনক',
+    sEn: 'Hazardous',
+    sBn: 'বিপজ্জনক',
+    color: '#d5305c',
+  },
 ];
 
 export function bandOf(aqi: number): Band {

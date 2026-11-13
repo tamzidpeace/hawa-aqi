@@ -1,4 +1,4 @@
-import type { Band } from '../lib/aqi';
+import { BANDS, bandOf, type Band } from '../lib/aqi';
 
 const R = 94;
 const C = 2 * Math.PI * R;
@@ -37,6 +37,7 @@ export function Gauge({ aqi, band, label }: { aqi: number; band: Band; label: st
 
 export function ScaleBar({ aqi, lang }: { aqi: number; lang: 'en' | 'bn' }) {
   const pct = Math.min(aqi, 500) / 500;
+  const cur = bandOf(aqi);
   return (
     <div className="scalebar">
       <div className="scalebar-zone">
@@ -47,6 +48,22 @@ export function ScaleBar({ aqi, lang }: { aqi: number; lang: 'en' | 'bn' }) {
         <span>0</span>
         <span>{lang === 'bn' ? 'মাত্রা বাড়ছে →' : 'worse →'}</span>
         <span>500</span>
+      </div>
+      <div className="scale-legend">
+        {BANDS.map((b, i) => {
+          const lo = i === 0 ? 0 : BANDS[i - 1].max + 1;
+          return (
+            <span key={b.key} className={`lg-item${b.key === cur.key ? ' on' : ''}`}>
+              <i className="lg-dot" style={{ background: b.color }} />
+              <span className="lg-text">
+                <span className="lg-name">{lang === 'bn' ? b.sBn : b.sEn}</span>
+                <span className="lg-range">
+                  {lo}–{b.max}
+                </span>
+              </span>
+            </span>
+          );
+        })}
       </div>
     </div>
   );

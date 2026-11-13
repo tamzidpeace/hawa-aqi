@@ -289,8 +289,6 @@ export function Home() {
           {data && band && (
             <>
               <section className="card hero">
-                <Gauge aqi={data.aqi} band={band} label={band[lang]} />
-                <ScaleBar aqi={data.aqi} lang={lang} />
                 {best && (
                   <div className="best" suppressHydrationWarning>
                     <Icon name="clock" size={16} />
@@ -299,6 +297,8 @@ export function Home() {
                     </span>
                   </div>
                 )}
+                <Gauge aqi={data.aqi} band={band} label={band[lang]} />
+                <ScaleBar aqi={data.aqi} lang={lang} />
                 {data.estimated && (
                   <div className="est">
                     <Icon name="info" size={13} /> {t('estimated')}
